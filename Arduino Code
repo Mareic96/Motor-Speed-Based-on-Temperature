@@ -1,0 +1,92 @@
+//Declare digital and analogue pins
+const int Temp_pin = A0;
+const int on_and_off_pin = 12;
+const int directional_pin = 9;
+const int motorswitch = 6;
+const int rightpin = 5;
+const int leftpin = 2;
+
+//Variables for digitalRead and statechange
+int on_and_off = 0;
+int previous_on_and_off = 0;
+int directional = 0;
+int previous_directional = 0;
+
+int sensorvalue = 0;
+float voltage = 0;
+int temperature = 0;
+float baselinetemp = 20.0;
+
+
+
+int motorenabled = 0;
+int motorspeed = 0;
+int motordirection = 1;
+
+void setup(){
+  Serial.begin(9600);
+  pinMode(on_and_off_pin,INPUT);
+  pinMode(directional_pin, INPUT);
+  pinMode(motorswitch, OUTPUT);
+  pinMode(rightpin, OUTPUT);
+  pinMode(leftpin, OUTPUT);
+  digitalWrite(motorswitch, LOW);
+}
+
+void loop(){
+  on_and_off = digitalRead(on_and_off_pin);
+  directional = digitalRead(directional_pin);
+  sensorvalue  = analogRead(Temp_pin);
+  int motorvalue = sensorvalue / 4;
+  
+  Serial.println("The raw values are: ");
+  Serial.println(sensorvalue);
+  voltage = (sensorvalue / 1024.0)*5.0;
+  Serial.println("The voltage is: ");
+  Serial.println(voltage);
+  temperature = (voltage - 0.5) * 100;
+  Serial.println("The temperature is: ");
+  Serial.println(temperature);
+
+  if(on_and_off != previous_on_and_off){
+    if(on_and_off == HIGH){
+      motorenabled = !motorenabled;
+    }
+  }
+
+  if(directional != previous_directional){
+    if(directional == HIGH){
+      motordirection = !motordirection;
+    }
+  }
+
+  if(motordirection == 1){
+    digitalWrite(rightpin, HIGH);
+    digitalWrite(leftpin, LOW);
+  }
+  else{
+    digitalWrite(rightpin, LOW);
+    digitalWrite(leftpin, HIGH);
+  }
+
+  if(motorenabled == 1){
+    if(temperature > baselinetemp + 2 && temperature < baselinetemp + 4){
+      analogWrite(motorswitch, 50);
+    }
+    else if(temperature > baselinetemp + 4 && temperature < baselinetemp + 6){
+      analogWrite(motorswitch, 100);
+    }
+    else if(temperature > baselinetemp + 6){
+      analogWrite(motorswitch, 150);
+    }
+  }
+  
+  else{
+    if(motorenabled == 0){
+     analogWrite(motorswitch, 0); 
+    }
+  }
+
+  previous_on_and_off = on_and_off;
+  previous_directional = directional;
+}
