@@ -1,92 +1,122 @@
-//Declare digital and analogue pins
-const int Temp_pin = A0;
-const int on_and_off_pin = 12;
-const int directional_pin = 9;
-const int motorswitch = 6;
-const int rightpin = 5;
-const int leftpin = 2;
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(3, 6, 7, 8, 9, 10);
+//Uno digital pins assignment
+const int tempPin = A1;
+const int onAndOffPin = 13;
+const int directionalPin = 12;
+const int motorSwitch = 5;
+const int rightPin = 4;
+const int leftPin = 2;
 
-//Variables for digitalRead and statechange
-int on_and_off = 0;
-int previous_on_and_off = 0;
-int directional = 0;
-int previous_directional = 0;
+//IC
+int onAndOffState = 0;
+int previousOnAndOffState = 0;
+int directionalState = 0;
+int previousDirectionalState = 0;
 
-int sensorvalue = 0;
+int motorEnable = 0;
+int motorDirection = 1;
+
+//Temperature sensor values
+int sensorValue = 0;
 float voltage = 0;
 int temperature = 0;
-float baselinetemp = 20.0;
+int temperature2 = 0;
+int temperature3 = 0;
+int average = 0;
+float baselineTemp = 20.0;
 
-
-
-int motorenabled = 0;
-int motorspeed = 0;
-int motordirection = 1;
-
-void setup(){
-  Serial.begin(9600);
-  pinMode(on_and_off_pin,INPUT);
-  pinMode(directional_pin, INPUT);
-  pinMode(motorswitch, OUTPUT);
-  pinMode(rightpin, OUTPUT);
-  pinMode(leftpin, OUTPUT);
-  digitalWrite(motorswitch, LOW);
+int readTemp() {
+  voltage = (analogRead(tempPin) / 1024.0) * 5.0;
+  return (voltage - 0.5) * 100;
 }
 
-void loop(){
-  on_and_off = digitalRead(on_and_off_pin);
-  directional = digitalRead(directional_pin);
-  sensorvalue  = analogRead(Temp_pin);
-  int motorvalue = sensorvalue / 4;
-  
-  Serial.println("The raw values are: ");
-  Serial.println(sensorvalue);
-  voltage = (sensorvalue / 1024.0)*5.0;
-  Serial.println("The voltage is: ");
-  Serial.println(voltage);
-  temperature = (voltage - 0.5) * 100;
-  Serial.println("The temperature is: ");
-  Serial.println(temperature);
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  pinMode(onAndOffPin, INPUT);
+  pinMode(directionalPin, INPUT);
+  pinMode(motorSwitch, OUTPUT);
+  pinMode(rightPin, OUTPUT);
+  pinMode(leftPin, OUTPUT);
 
-  if(on_and_off != previous_on_and_off){
-    if(on_and_off == HIGH){
-      motorenabled = !motorenabled;
+  digitalWrite(onAndOffPin, LOW);
+  digitalWrite(directionalPin, LOW);
+  digitalWrite(motorSwitch, LOW);
+  digitalWrite(rightPin, LOW);
+  digitalWrite(leftPin, LOW);
+
+  lcd.begin(16, 2);
+  lcd.print("Welcome");
+  delay(5000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Motor state: off");
+  lcd.setCursor(0, 1);
+  lcd.print("Temperature:" + String(readTemp()));
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  onAndOffState = digitalRead(onAndOffPin);
+  delay(1);
+  directionalState = digitalRead(directionalPin);
+  delay(1);
+
+  if(onAndOffState != previousOnAndOffState){
+    if(onAndOffState == HIGH){
+      motorEnable = !motorEnable;
+      if(motorEnable == 1) {
+        lcd.setCursor(13, 0);
+        lcd.print("On ");
+      }
+      else {
+        lcd.setCursor(13, 0);
+        lcd.print("Off");
+      }
     }
   }
 
-  if(directional != previous_directional){
-    if(directional == HIGH){
-      motordirection = !motordirection;
+  if(directionalState != previousDirectionalState){
+    if(directionalState == HIGH){
+      motorDirection = !motorDirection;
     }
   }
 
-  if(motordirection == 1){
-    digitalWrite(rightpin, HIGH);
-    digitalWrite(leftpin, LOW);
+  temperature = readTemp();
+  temperature2 = readTemp();
+  temperature3 = readTemp();
+  average = (temperature + temperature2 + temperature3) / 4;
+
+  if(motorEnable == 1){
+    if(temperature >= baselineTemp + 2 && temperature < baselineTemp + 7) {
+      analogWrite(motorSwitch, 60);
+    }
+    else if(temperature > baselineTemp + 7 && temperature < baselineTemp + 15) {
+      analogWrite(motorSwitch, 70);
+    }
+    else if(temperature > baselineTemp + 15) {
+      analogWrite(motorSwitch, 80);
+    }
   }
   else{
-    digitalWrite(rightpin, LOW);
-    digitalWrite(leftpin, HIGH);
+    analogWrite(motorSwitch, 0);
   }
 
-  if(motorenabled == 1){
-    if(temperature > baselinetemp + 2 && temperature < baselinetemp + 4){
-      analogWrite(motorswitch, 50);
-    }
-    else if(temperature > baselinetemp + 4 && temperature < baselinetemp + 6){
-      analogWrite(motorswitch, 100);
-    }
-    else if(temperature > baselinetemp + 6){
-      analogWrite(motorswitch, 150);
-    }
+  if(motorDirection == 1){
+    digitalWrite(rightPin, HIGH);
+    digitalWrite(leftPin, LOW);
   }
-  
   else{
-    if(motorenabled == 0){
-     analogWrite(motorswitch, 0); 
-    }
+    digitalWrite(rightPin, LOW);
+    digitalWrite(leftPin, HIGH);
   }
 
-  previous_on_and_off = on_and_off;
-  previous_directional = directional;
+  //Making sure the previous state stays zero
+  previousOnAndOffState = onAndOffState;
+  previousDirectionalState = directionalState;
+
+  lcd.setCursor(12, 1);
+  lcd.print(average);
+  delay(1000);
 }
